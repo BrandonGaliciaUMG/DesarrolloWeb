@@ -1,105 +1,235 @@
-!<!DOCTYPE html>
-<html>  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Hello Bulma!</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.2/css/bulma.min.css">
-    <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
-  </head>
-  <body>
-    <section class="hero is-primary">
-      <div class="hero-body">
-        <div class="container">
-          <h1 class="title">Portafolio</h1>
-          <h2 class="subtitle">Bienvenido a mi portafolio</h2>
-        </div>
-      </div>
-      <!-- Navbar -->
-      <nav class="navbar is-light">
-        <div class="navbar-brand">
-          <a class="navbar-item" href="#">
-            <img src="https://bulma.io/assets/images/bulma-banner.png" alt="Bulma logo">
-          </a>
-          <span class="navbar-burger burger" data-target="navMenu">
-            <span></span>
-            <span></span>
-            <span></span>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Portafolio | Brandon Galicia</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.4/css/bulma.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+  <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
+  <style>
+    body { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); }
+    .hero { background: linear-gradient(120deg, #007cf0 0%, #00dfd8 100%); }
+    .profile-pic { width: 120px; height: 120px; border-radius: 50%; border: 4px solid #fff; box-shadow: 0 4px 24px rgba(0,0,0,0.1); margin-bottom: 1rem; }
+    .card:hover { transform: translateY(-8px) scale(1.03); box-shadow: 0 8px 32px rgba(0,0,0,0.15); transition: 0.3s; }
+    .navbar { box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    .section { padding-top: 3rem; padding-bottom: 3rem; }
+    .icon { color: #00dfd8; }
+    @media (max-width: 768px) {
+      .columns { flex-direction: column; }
+      .profile-pic { width: 90px; height: 90px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar is-white animate__animated animate__fadeInDown">
+    <div class="container">
+      <div class="navbar-brand">
+        <a class="navbar-item" href="#">
+          <span class="icon-text">
+            <span class="icon"><i class="fas fa-laptop-code"></i></span>
+            <span>Brandon Galicia</span>
           </span>
-        </div>
-
-        <div id="navMenu" class="navbar-menu">
-          <div class="navbar-end">
-            <a class="navbar-item" href="#">Inicio</a>
-            <a class="navbar-item" href="#">Sobre Mí</a>
-            <a class="navbar-item" href="#">Proyectos</a>
-            <a class="navbar-item" href="#">Contacto</a>
-          </div>
-        </div>
-    </section>
-
-    <section class="section">
-      <div class="container">
-        <h1 class="title">Sobre Mí</h1>
-        <p>Hola, soy un desarrollador web apasionado por crear experiencias digitales únicas.</p>
+        </a>
+        <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false" data-target="navMenu">
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+        </a>
       </div>
-    </section>
-  
-    <div class="section">
-      <div class="container">
-        <h1 class="title">Habilidades</h1>
-        <div class="columns">
-          <div class="column is-one-third">
-            <div class="box">
-              <h2 class="subtitle">HTML & CSS</h2>
-              <p>Experiencia en diseño y maquetación de sitios web.</p>
+      <div id="navMenu" class="navbar-menu">
+        <div class="navbar-end">
+          <a class="navbar-item" href="#inicio">Inicio</a>
+          <a class="navbar-item" href="#sobre-mi">Sobre Mí</a>
+          <a class="navbar-item" href="#habilidades">Habilidades</a>
+          <a class="navbar-item" href="#proyectos">Proyectos</a>
+          <a class="navbar-item" href="#contacto">Contacto</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero is-medium is-bold animate__animated animate__fadeIn" id="inicio">
+    <div class="hero-body has-text-centered">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Escudo_de_la_universidad_Mariano_G%C3%A1lvez_Guatemala.svg/1200px-Escudo_de_la_universidad_Mariano_G%C3%A1lvez_Guatemala.svg.png" alt="Foto de perfil" class="profile-pic animate__animated animate__zoomIn">
+      <h1 class="title has-text-white animate__animated animate__fadeInDown">¡Hola! Soy Brandon Galicia</h1>
+      <h2 class="subtitle has-text-white animate__animated animate__fadeInUp">Desarrollador Web | Frontend & Backend</h2>
+      <a href="#contacto" class="button is-info is-large animate__animated animate__pulse animate__infinite">Contáctame</a>
+    </div>
+  </section>
+
+  <!-- Sobre Mí -->
+  <section class="section animate__animated animate__fadeInUp" id="sobre-mi">
+    <div class="container">
+      <div class="columns is-vcentered">
+        <div class="column is-half">
+          <h1 class="title is-2">Sobre Mí</h1>
+          <p class="is-size-5">Soy un desarrollador web apasionado por crear experiencias digitales únicas y funcionales. Me especializo en el desarrollo frontend y backend, utilizando tecnologías modernas para construir sitios y aplicaciones atractivas, rápidas y responsivas.</p>
+        </div>
+        <div class="column is-half has-text-centered">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Escudo_de_la_universidad_Mariano_G%C3%A1lvez_Guatemala.svg/1200px-Escudo_de_la_universidad_Mariano_G%C3%A1lvez_Guatemala.svg.png" alt="Foto de perfil" class="profile-pic animate__animated animate__fadeInRight">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Habilidades -->
+  <section class="section animate__animated animate__fadeInUp" id="habilidades">
+    <div class="container">
+      <h1 class="title is-2 has-text-centered">Habilidades</h1>
+      <div class="columns is-multiline is-centered">
+        <div class="column is-4-tablet is-3-desktop">
+          <div class="card has-text-centered">
+            <div class="card-content">
+              <span class="icon is-large"><i class="fab fa-html5 fa-3x"></i></span>
+              <h2 class="subtitle mt-2">HTML5 & CSS3</h2>
+              <p>Diseño y maquetación de sitios web modernos y responsivos.</p>
             </div>
           </div>
-          <div class="column is-one-third">
-            <div class="box">
-              <h2 class="subtitle">JavaScript</h2>
+        </div>
+        <div class="column is-4-tablet is-3-desktop">
+          <div class="card has-text-centered">
+            <div class="card-content">
+              <span class="icon is-large"><i class="fab fa-js-square fa-3x"></i></span>
+              <h2 class="subtitle mt-2">JavaScript</h2>
               <p>Desarrollo de aplicaciones interactivas y dinámicas.</p>
             </div>
           </div>
-          <div class="column is-one-third">
-            <div class="box">
-              <h2 class="subtitle">React</h2>
-              <p>Creación de interfaces de usuario modernas y eficientes.</p>
+        </div>
+        <div class="column is-4-tablet is-3-desktop">
+          <div class="card has-text-centered">
+            <div class="card-content">
+              <span class="icon is-large"><i class="fab fa-react fa-3x"></i></span>
+              <h2 class="subtitle mt-2">React</h2>
+              <p>Interfaces de usuario modernas y eficientes.</p>
+            </div>
+          </div>
+        </div>
+        <div class="column is-4-tablet is-3-desktop">
+          <div class="card has-text-centered">
+            <div class="card-content">
+              <span class="icon is-large"><i class="fas fa-database fa-3x"></i></span>
+              <h2 class="subtitle mt-2">Backend & BD</h2>
+              <p>APIs, lógica de servidor y bases de datos relacionales/noSQL.</p>
             </div>
           </div>
         </div>
       </div>
     </div>
+  </section>
 
-    <section class="section">
-      <div class="container">
-        <h1 class="title">Proyectos Recientes</h1>
-        <div class="columns">
-          <div class="column is-one-third">
-            <div class="box">
+  <!-- Proyectos -->
+  <section class="section animate__animated animate__fadeInUp" id="proyectos">
+    <div class="container">
+      <h1 class="title is-2 has-text-centered">Proyectos Recientes</h1>
+      <div class="columns is-multiline is-centered">
+        <div class="column is-4-tablet is-3-desktop">
+          <div class="card">
+            <div class="card-image">
+              <figure class="image is-4by3">
+                <img src="https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=400&q=80" alt="Proyecto 1">
+              </figure>
+            </div>
+            <div class="card-content">
               <h2 class="subtitle">Proyecto 1</h2>
-              <p>Descripción del proyecto 1.</p>
+              <p>Descripción breve del proyecto 1. <a href="#" class="has-text-info">Ver más</a></p>
             </div>
           </div>
-          <div class="column is-one-third">
-            <div class="box">
+        </div>
+        <div class="column is-4-tablet is-3-desktop">
+          <div class="card">
+            <div class="card-image">
+              <figure class="image is-4by3">
+                <img src="https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=400&q=80" alt="Proyecto 2">
+              </figure>
+            </div>
+            <div class="card-content">
               <h2 class="subtitle">Proyecto 2</h2>
-              <p>Descripción del proyecto 2.</p>
+              <p>Descripción breve del proyecto 2. <a href="#" class="has-text-info">Ver más</a></p>
             </div>
           </div>
-          <div class="column is-one-third">
-            <div class="box">
+        </div>
+        <div class="column is-4-tablet is-3-desktop">
+          <div class="card">
+            <div class="card-image">
+              <figure class="image is-4by3">
+                <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80" alt="Proyecto 3">
+              </figure>
+            </div>
+            <div class="card-content">
               <h2 class="subtitle">Proyecto 3</h2>
-              <p>Descripción del proyecto 3.</p>
+              <p>Descripción breve del proyecto 3. <a href="#" class="has-text-info">Ver más</a></p>
             </div>
           </div>
         </div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <footer class="footer has-background-primary has-text-white-ter">
-      <div class="content has-text-centered">
-        <p>© 2023 Mi Portafolio. Todos los derechos reservados.</p>
+  <!-- Contacto -->
+  <section class="section animate__animated animate__fadeInUp" id="contacto">
+    <div class="container">
+      <h1 class="title is-2 has-text-centered">Contacto</h1>
+      <div class="columns is-centered">
+        <div class="column is-half">
+          <form>
+            <div class="field">
+              <label class="label">Nombre</label>
+              <div class="control">
+                <input class="input" type="text" placeholder="Tu nombre">
+              </div>
+            </div>
+            <div class="field">
+              <label class="label">Correo</label>
+              <div class="control">
+                <input class="input" type="email" placeholder="tucorreo@email.com">
+              </div>
+            </div>
+            <div class="field">
+              <label class="label">Mensaje</label>
+              <div class="control">
+                <textarea class="textarea" placeholder="Escribe tu mensaje"></textarea>
+              </div>
+            </div>
+            <div class="field is-grouped is-grouped-centered">
+              <div class="control">
+                <button class="button is-primary">Enviar</button>
+              </div>
+            </div>
+          </form>
+        </div>
       </div>
-    </footer>
-  </body>
+    </div>
+  </section>
+
+  <footer class="footer has-background-primary has-text-white-ter animate__animated animate__fadeInUp">
+    <div class="content has-text-centered">
+      <p>© 2025 Brandon Galicia. Todos los derechos reservados.</p>
+      <div>
+        <a href="#" class="icon has-text-white mx-2"><i class="fab fa-github fa-lg"></i></a>
+        <a href="#" class="icon has-text-white mx-2"><i class="fab fa-linkedin fa-lg"></i></a>
+        <a href="#" class="icon has-text-white mx-2"><i class="fab fa-twitter fa-lg"></i></a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Navbar burger for mobile
+    document.addEventListener('DOMContentLoaded', () => {
+      const $navbarBurgers = Array.prototype.slice.call(document.querySelectorAll('.navbar-burger'), 0);
+      if ($navbarBurgers.length > 0) {
+        $navbarBurgers.forEach( el => {
+          el.addEventListener('click', () => {
+            const target = el.dataset.target;
+            const $target = document.getElementById(target);
+            el.classList.toggle('is-active');
+            $target.classList.toggle('is-active');
+          });
+        });
+      }
+    });
+  </script>
+</body>
 </html>
