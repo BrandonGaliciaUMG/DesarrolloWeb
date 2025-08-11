@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.4/css/bulma.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+ 
+</head>
+<body>
+  <section class="section animate__animated animate__fadeIn">
+    <div class="container">
+      <div class="columns is-centered animate__animated animate__zoomIn">
+        <div class="column is-5-tablet is-4-desktop">
+          <div class="card p-5">
+            <div class="card-content">
+              <div class="has-text-centered mb-4">
+                <span class="icon is-large login-icon">
+                  <i class="fas fa-user-circle fa-3x"></i>
+                </span>
+                <h1 class="title login-title">Iniciar Sesión</h1>
+              </div>
+              <form action="login.php" method="post">
+                <div class="field">
+                  <label class="label" for="username">Usuario</label>
+                  <div class="control has-icons-left">
+                    <input class="input" type="text" id="username" name="username" placeholder="Tu usuario" required>
+                    <span class="icon is-small is-left"><i class="fas fa-user"></i></span>
+                  </div>
+                </div>
+                <div class="field">
+                  <label class="label" for="password">Contraseña</label>
+                  <div class="control has-icons-left">
+                    <input class="input" type="password" id="password" name="password" placeholder="Tu contraseña" required>
+                    <span class="icon is-small is-left"><i class="fas fa-lock"></i></span>
+                  </div>
+                </div>
+                <div class="field mt-5">
+                  <button class="button is-primary is-fullwidth is-medium animate__animated" type="submit">Entrar</button>
+                </div>
+              </form>
+              <div class="has-text-centered mt-4">
+                <a href="crear_cuenta.html" class="button is-text has-text-info">Crear cuenta nueva</a>
+                <br>
+                <a href="recuperar_contraseña.html" class="has-text-grey-dark is-size-7">¿Olvidaste tu contraseña?</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
+</body>
+</html>
