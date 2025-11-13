@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import Container from "@mui/material/Container";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -9,98 +9,197 @@ import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import CircularProgress from "@mui/material/CircularProgress";
 import Alert from "@mui/material/Alert";
+import TextField from "@mui/material/TextField";
+import Snackbar from "@mui/material/Snackbar";
 
 import StatusBadge from "./StatusBadge";
 import RelativeDate from "./RelativeDate";
 import GestionStepper from "./GestionStepper";
 
 /**
- * GestionDetail - componente con hooks correctamente ordenados y mejoras:
- *  - fallbacks para fechas y usuarios nulos en las etapas
- *  - evita abrir modal de cambio si la gestión está en estado terminal
+ * GestionDetail
  *
  * Props:
- *  - gestionId (required) : id de la gestión a cargar
- *  - onOpenChangeModal (optional): callback para abrir modal de cambio de estado
+ *  - gestionId (optional): id to fetch from API (/api/gestiones/{id})
+ *  - record (optional): pre-fetched normalized record object (used by GestionesSearch)
+ *  - estadosCatalog (optional): array of estados (if provided, avoids fetching estados)
+ *  - onOpenChangeModal (optional): callback to open change-state modal
+ *
+ * Behavior:
+ *  - If `record` prop is provided, uses it directly and DOES NOT fetch the gestion.
+ *  - Else, if `gestionId` is provided, fetches gestion and catalogos/estados.
+ *  - Adds "Acciones rápidas" UI below stepper: buttons with the next states (Finalizar, Cancelar, siguiente etapa)
+ *    that open an inline comment field and allow submitting a transition which updates the gestion.
  */
-export default function GestionDetail({ gestionId, onOpenChangeModal }) {
+export default function GestionDetail({ gestionId, record, estadosCatalog: estadosProp, onOpenChangeModal }) {
   const [gest, setGest] = useState(null);
-  const [estados, setEstados] = useState([]);
+  const [estados, setEstados] = useState(Array.isArray(estadosProp) ? estadosProp : []);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const API_BASE = process.env.REACT_APP_API_BASE || "";
+  // Quick action UI state
+  const [quickTarget, setQuickTarget] = useState(null); // estado id selected for quick transition
+  const [quickComment, setQuickComment] = useState("");
+  const [submittingQuick, setSubmittingQuick] = useState(false);
+  const [snack, setSnack] = useState({ open: false, msg: "", severity: "info" });
 
-  // Hooks: siempre colocados en la cima del componente
+  const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:8000";
+
+  // Keep estados in sync if estadosProp changes
+  useEffect(() => {
+    if (Array.isArray(estadosProp) && estadosProp.length > 0) {
+      setEstados(estadosProp);
+    }
+  }, [estadosProp]);
+
+  // Reload function usable after a transition
+  const reloadGestion = useCallback(async (id) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [estRes, gRes] = await Promise.all([
+        Array.isArray(estadosProp) && estadosProp.length > 0
+          ? Promise.resolve(estadosProp)
+          : fetch(`${API_BASE}/api/catalogos/estados`).then(r => {
+              if (!r.ok) throw new Error(`Error cargando estados: ${r.status}`);
+              return r.json();
+            }),
+        fetch(`${API_BASE}/api/gestiones/${id}`).then(r => {
+          if (!r.ok) {
+            const e = new Error(`Gestión no encontrada (${r.status})`);
+            e.status = r.status;
+            throw e;
+          }
+          return r.json();
+        })
+      ]);
+      setEstados(Array.isArray(estRes) ? estRes : []);
+      setGest(gRes || null);
+    } catch (err) {
+      setError(String(err?.message || err));
+      setGest(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [API_BASE, estadosProp]);
+
+  // Load gestion when gestionId is provided; when record is provided use it instead.
   useEffect(() => {
     let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const [estRes, gRes] = await Promise.all([
-          fetch(`${API_BASE}/api/catalogos/estados`).then((r) => {
-            if (!r.ok) throw new Error("Error cargando estados");
-            return r.json();
-          }),
-          // DEBUG: fetch con logging de error detallado
-          (async () => {
-            const resp = await fetch(`${API_BASE}/api/gestiones/${gestionId}`);
-            if (!resp.ok) {
-              const text = await resp.text().catch(() => null);
-              throw new Error(`GET /api/gestiones/${gestionId} -> ${resp.status} ${resp.statusText} ${text ?? ""}`);
-            }
-            return resp.json();
-          })(),
-        ]);
-        if (cancelled) return;
-        setEstados(estRes || []);
-        setGest(gRes || null);
-      } catch (err) {
-        if (!cancelled) setError(String(err?.message || err));
-        setGest(null);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
 
-    if (gestionId != null) {
-      load();
-    } else {
-      setGest(null);
-      setEstados([]);
+    // If a pre-fetched record is provided, use it directly (no fetch for the gestion)
+    if (record) {
+      const normalized = {
+        id: record.id ?? null,
+        nombre: record.nombre ?? "",
+        descripcion: record.descripcion ?? "",
+        fecha_creacion: record.creada ?? record.fecha_creacion ?? record.fecha ?? null,
+        estado_id: record.estado_id ?? null,
+        estado_nombre: record.estado_nombre ?? null,
+        responsable_nombre: record.responsable_nombre ?? record.responsable ?? "",
+        etapas: Array.isArray(record.etapas) ? record.etapas : (Array.isArray(record.eventos) ? record.eventos : [])
+      };
+      setGest(normalized);
+      // fetch estados in background only if not provided
+      if (!Array.isArray(estadosProp) || estadosProp.length === 0) {
+        (async () => {
+          try {
+            const r = await fetch(`${API_BASE}/api/catalogos/estados`);
+            if (r.ok) {
+              const d = await r.json();
+              if (!cancelled) setEstados(Array.isArray(d) ? d : []);
+            }
+          } catch (e) {
+            console.warn("No se pudieron cargar estados en background:", e);
+          }
+        })();
+      }
       setLoading(false);
+      setError(null);
+    } else if (gestionId != null) {
+      // fetch from API
+      reloadGestion(gestionId);
+    } else {
+      // no id and no record -> clear
+      setGest(null);
+      setLoading(false);
+      setError(null);
     }
 
     return () => {
       cancelled = true;
     };
-  }, [gestionId, API_BASE]);
+  }, [gestionId, record, API_BASE, estadosProp, reloadGestion]);
 
-  // Map de estados por id para búsquedas rápidas
+  // Map estados by id
   const estadosMap = useMemo(() => {
     const m = new Map();
     if (Array.isArray(estados)) {
-      for (const s of estados) {
-        m.set(Number(s.id), s);
-      }
+      estados.forEach(s => m.set(Number(s.id), s));
     }
     return m;
   }, [estados]);
 
-  // Estado actual objeto (o undefined)
+  // currentEstado resolved from estadosMap
   const currentEstado = useMemo(() => {
-    if (!gest || !gest.estado_id) return undefined;
-    return estadosMap.get(Number(gest.estado_id));
+    if (!gest || gest.estado_id == null) return undefined;
+    return estadosMap.get(Number(gest.estado_id)) ?? { id: gest.estado_id, nombre: gest.estado_nombre ?? String(gest.estado_id) };
   }, [gest, estadosMap]);
 
-  // Estados ordenados para el Stepper
+  // stepper estados ordered
   const stepperEstados = useMemo(() => {
     if (!Array.isArray(estados)) return [];
     return [...estados].sort((a, b) => (Number(a.orden ?? 0) - Number(b.orden ?? 0)));
   }, [estados]);
 
-  // Render handling
+  // possible quick targets: states with orden greater than current
+  const possibleQuickTargets = useMemo(() => {
+    if (!currentEstado) return stepperEstados;
+    const curOrden = Number(currentEstado.orden ?? 0);
+    return stepperEstados.filter(e => Number(e.orden ?? 0) > curOrden);
+  }, [stepperEstados, currentEstado]);
+
+  // Submit a quick transition (inline, without opening the modal)
+  async function submitQuickTransition(targetId) {
+    if (!gest || !gest.id) {
+      setSnack({ open: true, msg: "Gestión no disponible para actualizar", severity: "error" });
+      return;
+    }
+    setSubmittingQuick(true);
+    try {
+      const body = {
+        usuario_id: null,
+        comentario: quickComment || `Cambio rápido a estado ${targetId}`,
+        estado_id: Number(targetId),
+        apply_transition: true
+      };
+      const resp = await fetch(`${API_BASE}/api/gestiones/${gest.id}/eventos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      if (!resp.ok) {
+        const errBody = await resp.json().catch(() => null);
+        const msg = errBody?.detail || `Error al crear evento: ${resp.status}`;
+        throw new Error(msg);
+      }
+      const data = await resp.json().catch(() => null);
+      setSnack({ open: true, msg: "Transición realizada", severity: "success" });
+      // reset quick UI
+      setQuickComment("");
+      setQuickTarget(null);
+      // reload gestion from API to reflect new state
+      await reloadGestion(gest.id);
+      // if parent wants to react (e.g. close modal) we can call onOpenChangeModal? Not here.
+    } catch (err) {
+      console.error("submitQuickTransition error:", err);
+      setSnack({ open: true, msg: String(err.message || err), severity: "error" });
+    } finally {
+      setSubmittingQuick(false);
+    }
+  }
+
+  // Render states
   if (loading) {
     return (
       <Container sx={{ py: 4, textAlign: "center" }}>
@@ -164,10 +263,7 @@ export default function GestionDetail({ gestionId, onOpenChangeModal }) {
             estadosCatalog={stepperEstados}
             currentEstadoId={gest.estado_id}
             onStepClick={(e) => {
-              // por defecto abrimos el modal de cambio si se provee callback
               if (isTerminal) {
-                // proteger: no abrir modal si gestión terminal
-                // puedes reemplazar alert por snackbar en tu app
                 alert("Esta gestión está en un estado terminal; no se permiten cambios.");
                 return;
               }
@@ -177,12 +273,74 @@ export default function GestionDetail({ gestionId, onOpenChangeModal }) {
 
           <Divider />
 
+          {/* Quick actions: show next/terminal states as buttons so user can choose and comment inline */}
+          <Box>
+            <Typography variant="subtitle1" sx={{ mb: 1 }}>Acciones rápidas</Typography>
+
+            {possibleQuickTargets.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">No hay transiciones disponibles.</Typography>
+            ) : (
+              <Box display="flex" gap={1} flexWrap="wrap" mb={1}>
+                {possibleQuickTargets.map((t) => (
+                  <Button
+                    key={t.id}
+                    variant={Number(t.id) === Number(quickTarget) ? "contained" : "outlined"}
+                    color={t.is_terminal ? "error" : "primary"}
+                    onClick={() => {
+                      // toggle selection
+                      if (String(quickTarget) === String(t.id)) {
+                        setQuickTarget(null);
+                        setQuickComment("");
+                      } else {
+                        setQuickTarget(t.id);
+                        setQuickComment("");
+                      }
+                    }}
+                    size="small"
+                  >
+                    {t.nombre}
+                  </Button>
+                ))}
+              </Box>
+            )}
+
+            {/* Inline comment + confirm for the selected quick target */}
+            {quickTarget && (
+              <Paper variant="outlined" sx={{ p: 2, mb: 1 }}>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  Comentario para <strong>{(stepperEstados.find(s => Number(s.id) === Number(quickTarget)) || {}).nombre}</strong>
+                </Typography>
+                <TextField
+                  value={quickComment}
+                  onChange={(e) => setQuickComment(e.target.value)}
+                  fullWidth
+                  multiline
+                  minRows={3}
+                  placeholder="Escribe un comentario (opcional)"
+                  sx={{ mb: 1 }}
+                />
+                <Box display="flex" gap={1} justifyContent="flex-end">
+                  <Button variant="text" onClick={() => { setQuickTarget(null); setQuickComment(""); }} disabled={submittingQuick}>Cancelar</Button>
+                  <Button
+                    variant="contained"
+                    onClick={() => submitQuickTransition(quickTarget)}
+                    disabled={submittingQuick}
+                  >
+                    {submittingQuick ? "Enviando..." : "Confirmar cambio"}
+                  </Button>
+                </Box>
+              </Paper>
+            )}
+          </Box>
+
+          <Divider />
+
           <Box>
             <Typography variant="subtitle1" sx={{ mb: 1 }}>Historial</Typography>
             {gest.etapas && gest.etapas.length > 0 ? (
               gest.etapas.map((et) => (
                 <Paper
-                  key={et.id}
+                  key={et.id ?? `${et.estado_id}-${et.fecha ?? ""}`}
                   variant="outlined"
                   sx={{
                     p: 1,
@@ -229,6 +387,16 @@ export default function GestionDetail({ gestionId, onOpenChangeModal }) {
           </Box>
         </Stack>
       </Paper>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3500}
+        onClose={() => setSnack({ ...snack, open: false })}
+      >
+        <Alert severity={snack.severity} onClose={() => setSnack({ ...snack, open: false })}>
+          {snack.msg}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 }
