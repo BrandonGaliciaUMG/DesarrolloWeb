@@ -4,6 +4,8 @@
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, TIMESTAMP, Boolean
 from sqlalchemy.orm import relationship
 from db import Base
+from datetime import datetime
+from sqlalchemy import Column, DateTime
 
 class CatalogoEstado(Base):
     __tablename__ = "catalogo_estado"
@@ -53,7 +55,7 @@ class Evento(Base):
     id = Column(Integer, primary_key=True)
     gestion_id = Column(Integer, ForeignKey("gestion.id"))
     usuario_id = Column(Integer, ForeignKey("usuario.id"))
-    fecha = Column(TIMESTAMP)
+    fecha = Column(DateTime, default=datetime.utcnow, nullable=False)
     comentario = Column(Text)
     estado_id = Column(Integer, ForeignKey("catalogo_estado.id"))
 

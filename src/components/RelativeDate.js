@@ -5,21 +5,33 @@ import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 
 /**
- * RelativeDate
- * Props:
- *  - value: ISO string or Date
- *  - showTime (optional): true => include time in tooltip
- *  - variant (optional): MUI Typography variant
+ * RelativeDate - interpreta strings sin zona como UTC (añade 'T' y 'Z' si hace falta)
  */
 export default function RelativeDate({ value, showTime = true, variant = "body2" }) {
-  if (!value) return <Typography variant={variant}>—</Typography>;
+  if (!value) return <Typography variant={variant} component="span">—</Typography>;
 
   let date;
   try {
-    date = typeof value === "string" ? parseISO(value) : value;
+    if (typeof value === "string") {
+      // Normalizar formatos comunes: "YYYY-MM-DD HH:MM:SS[.ffffff]" -> "YYYY-MM-DDTHH:MM:SS[.ffffff]Z"
+      let s = value.trim();
+      // si ya tiene 'T' or timezone info, dejarlo
+      const hasT = s.includes("T");
+      const hasZone = /[zZ]|[+\-]\d{2}:?\d{2}$/.test(s);
+      if (!hasT) {
+        s = s.replace(" ", "T");
+      }
+      if (!hasZone) {
+        // asumimos UTC para timestamps sin zona
+        s = s + "Z";
+      }
+      date = parseISO(s);
+    } else {
+      date = value instanceof Date ? value : parseISO(String(value));
+    }
   } catch (err) {
-    // fallback: show raw
-    return <Typography variant={variant}>{String(value)}</Typography>;
+    // fallback: mostrar raw
+    return <Typography variant={variant} component="span">{String(value)}</Typography>;
   }
 
   const rel = formatDistanceToNow(date, { addSuffix: true, locale: es });
@@ -27,9 +39,7 @@ export default function RelativeDate({ value, showTime = true, variant = "body2"
 
   return (
     <Tooltip title={full}>
-      <Typography variant={variant} component="span" sx={{ fontWeight: 500 }}>
-        {rel}
-      </Typography>
+      <Typography variant={variant} component="span" sx={{ fontWeight: 500 }}>{rel}</Typography>
     </Tooltip>
   );
 }

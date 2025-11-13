@@ -28,8 +28,8 @@ import GestionStepper from "./GestionStepper";
  * Behavior:
  *  - If `record` prop is provided, uses it directly and DOES NOT fetch the gestion.
  *  - Else, if `gestionId` is provided, fetches gestion and catalogos/estados.
- *  - Adds "Acciones rápidas" UI below stepper: buttons with the next states (Finalizar, Cancelar, siguiente etapa)
- *    that open an inline comment field and allow submitting a transition which updates the gestion.
+ *  - Adds "Acciones rápidas" UI below stepper with stepwise restriction for pending states.
+ *  - The bottom action buttons ("Agregar evento" / "Acción rápida") have been removed — quick actions above are the canonical way.
  */
 export default function GestionDetail({ gestionId, record, estadosCatalog: estadosProp, onOpenChangeModal }) {
   const [gest, setGest] = useState(null);
@@ -153,11 +153,31 @@ export default function GestionDetail({ gestionId, record, estadosCatalog: estad
   }, [estados]);
 
   // possible quick targets: states with orden greater than current
-  const possibleQuickTargets = useMemo(() => {
+  const possibleQuickTargetsBase = useMemo(() => {
     if (!currentEstado) return stepperEstados;
     const curOrden = Number(currentEstado.orden ?? 0);
     return stepperEstados.filter(e => Number(e.orden ?? 0) > curOrden);
   }, [stepperEstados, currentEstado]);
+
+  // If the current state is "Pendiente" (name includes "pendiente"), don't allow direct "Finalizar" quick actions.
+  // Allow only the immediate next stage (orden === curOrden+1) or "Cancelar".
+  const possibleQuickTargets = useMemo(() => {
+    if (!currentEstado) return possibleQuickTargetsBase;
+    const name = String(currentEstado.nombre ?? "").toLowerCase();
+    const curOrden = Number(currentEstado.orden ?? 0);
+
+    if (/pendiente/i.test(name)) {
+      return possibleQuickTargetsBase.filter(e => {
+        const orden = Number(e.orden ?? 0);
+        const enCanc = /cancel|cancelado|anular/i.test(String(e.nombre ?? ""));
+        // allow cancel anytime from pendiente OR allow only the immediate next step
+        return enCanc || orden === curOrden + 1;
+      });
+    }
+
+    // otherwise allow all later steps (original behavior)
+    return possibleQuickTargetsBase;
+  }, [possibleQuickTargetsBase, currentEstado]);
 
   // Submit a quick transition (inline, without opening the modal)
   async function submitQuickTransition(targetId) {
@@ -190,7 +210,6 @@ export default function GestionDetail({ gestionId, record, estadosCatalog: estad
       setQuickTarget(null);
       // reload gestion from API to reflect new state
       await reloadGestion(gest.id);
-      // if parent wants to react (e.g. close modal) we can call onOpenChangeModal? Not here.
     } catch (err) {
       console.error("submitQuickTransition error:", err);
       setSnack({ open: true, msg: String(err.message || err), severity: "error" });
@@ -370,21 +389,7 @@ export default function GestionDetail({ gestionId, record, estadosCatalog: estad
             )}
           </Box>
 
-          <Box display="flex" gap={1} justifyContent="flex-end">
-            <Button
-              variant="outlined"
-              onClick={() => {
-                if (isTerminal) {
-                  alert("Esta gestión está en estado terminal; no se permiten nuevas transiciones.");
-                  return;
-                }
-                onOpenChangeModal && onOpenChangeModal();
-              }}
-            >
-              Agregar evento
-            </Button>
-            <Button variant="contained">Acción rápida</Button>
-          </Box>
+          {/* Bottom action buttons removed — quick actions above are used instead */}
         </Stack>
       </Paper>
 

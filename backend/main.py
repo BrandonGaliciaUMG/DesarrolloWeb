@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import text, or_
+from datetime import datetime, timezone
 
 # Ajusta según tu proyecto
 from db import SessionLocal, engine, Base
@@ -36,6 +37,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 def get_db():
     db = SessionLocal()
     try:
@@ -43,11 +45,15 @@ def get_db():
     finally:
         db.close()
 
+
 class EventoCreate(BaseModel):
     usuario_id: Optional[int] = None
     comentario: Optional[str] = None
     estado_id: Optional[int] = None
     apply_transition: bool = False
+    # Si deseas aceptar fecha enviada por cliente, puedes descomentar:
+    # fecha: Optional[datetime] = None
+
 
 def _is_int(s: str) -> bool:
     try:
@@ -55,6 +61,35 @@ def _is_int(s: str) -> bool:
         return True
     except Exception:
         return False
+
+
+def _to_iso_z(dt):
+    """
+    Normaliza datetimes para enviar al cliente en formato ISO con Z (UTC).
+    - Si dt es None -> None
+    - Si dt.tzinfo is None -> asumimos UTC y añadimos 'Z'
+    - Si dt tiene tzinfo -> convertimos a UTC y devolvemos ISO con Z
+    """
+    if dt is None:
+        return None
+    try:
+        # si ya es string, devolver tal cual (precaución)
+        if isinstance(dt, str):
+            s = dt.strip()
+            # si parece no tener T, normalizar a T and add Z
+            if "T" not in s:
+                s = s.replace(" ", "T")
+            if not (s.endswith("Z") or "+" in s or "-" in s[-6:]):
+                s = s + "Z"
+            return s
+        # datetime object
+        if getattr(dt, "tzinfo", None) is None:
+            return dt.isoformat() + "Z"
+        return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    except Exception:
+        # fallback: str()
+        return str(dt)
+
 
 # Catalogos
 @app.get("/api/catalogos/estados")
@@ -64,14 +99,17 @@ def get_estados(db: Session = Depends(get_db)):
     for e in estados:
         rows = db.query(EstadoTransicion).filter(EstadoTransicion.from_estado_id == e.id).all()
         allowed = [r.to_estado_id for r in rows]
-        out.append({
-            "id": e.id,
-            "nombre": e.nombre,
-            "orden": e.orden or 0,
-            "is_terminal": bool(e.is_terminal),
-            "allowed_next": allowed
-        })
+        out.append(
+            {
+                "id": e.id,
+                "nombre": e.nombre,
+                "orden": e.orden or 0,
+                "is_terminal": bool(e.is_terminal),
+                "allowed_next": allowed,
+            }
+        )
     return out
+
 
 @app.get("/api/catalogos/comentario-plantillas")
 def get_plantillas(db: Session = Depends(get_db)):
@@ -84,15 +122,18 @@ def get_plantillas(db: Session = Depends(get_db)):
             "titulo": r.titulo,
             "template": r.template,
             "required": bool(r.required),
-            "roles_allowed": r.roles_allowed
-        } for r in rows
+            "roles_allowed": r.roles_allowed,
+        }
+        for r in rows
     ]
+
 
 # Usuarios
 @app.get("/api/usuarios/")
 def list_usuarios(db: Session = Depends(get_db)):
     users = db.query(Usuario).all()
     return [{"id": u.id, "nombre": u.nombre, "correo": u.correo} for u in users]
+
 
 # Gestiones: LIST (LEE tipo con SELECT directo para asegurarnos)
 @app.get("/api/gestiones/")
@@ -103,16 +144,19 @@ def list_gestiones(db: Session = Depends(get_db)):
         # Leer 'tipo' directamente con SQL para evitar problemas de mapeo ORM
         row = db.execute(text("SELECT tipo FROM gestion WHERE id = :id"), {"id": g.id}).fetchone()
         tipo_val = row[0] if row is not None else None
-        out.append({
-            "id": g.id,
-            "nombre": g.nombre,
-            "descripcion": g.descripcion,
-            "estado_id": g.estado_id,
-            "tipo": tipo_val,
-            "responsable_id": g.responsable_id,
-            "fecha_creacion": str(g.fecha_creacion) if g.fecha_creacion is not None else None
-        })
+        out.append(
+            {
+                "id": g.id,
+                "nombre": g.nombre,
+                "descripcion": g.descripcion,
+                "estado_id": g.estado_id,
+                "tipo": tipo_val,
+                "responsable_id": g.responsable_id,
+                "fecha_creacion": _to_iso_z(g.fecha_creacion),
+            }
+        )
     return out
+
 
 # Gestiones: DETAIL (id o búsqueda por nombre)
 @app.get("/api/gestiones/{code}")
@@ -143,14 +187,16 @@ def get_gestion_by_code(code: str, db: Session = Depends(get_db)):
         if ev.estado_id:
             est2 = db.query(CatalogoEstado).filter(CatalogoEstado.id == ev.estado_id).first()
             ev_estado_nombre = est2.nombre if est2 else None
-        etapas.append({
-            "id": ev.id,
-            "fecha": str(ev.fecha) if ev.fecha is not None else None,
-            "comentario": ev.comentario,
-            "usuario_id": ev.usuario_id,
-            "estado_id": ev.estado_id,
-            "estado_nombre": ev_estado_nombre
-        })
+        etapas.append(
+            {
+                "id": ev.id,
+                "fecha": _to_iso_z(ev.fecha),
+                "comentario": ev.comentario,
+                "usuario_id": ev.usuario_id,
+                "estado_id": ev.estado_id,
+                "estado_nombre": ev_estado_nombre,
+            }
+        )
 
     responsable_nombre = None
     if g.responsable_id:
@@ -166,11 +212,12 @@ def get_gestion_by_code(code: str, db: Session = Depends(get_db)):
         "tipo": tipo_val,
         "responsable_id": g.responsable_id,
         "responsable_nombre": responsable_nombre,
-        "fecha_creacion": str(g.fecha_creacion) if g.fecha_creacion else None,
-        "etapas": etapas
+        "fecha_creacion": _to_iso_z(g.fecha_creacion),
+        "etapas": etapas,
     }
 
-# Crear evento / aplicar transición (sin cambios)
+
+# Crear evento / aplicar transición (fix: asignar fecha en el servidor)
 @app.post("/api/gestiones/{gestion_id}/eventos")
 def create_evento(gestion_id: int, payload: EventoCreate, db: Session = Depends(get_db)):
     g = db.query(Gestion).filter(Gestion.id == gestion_id).first()
@@ -179,25 +226,36 @@ def create_evento(gestion_id: int, payload: EventoCreate, db: Session = Depends(
 
     if payload.apply_transition and payload.estado_id is not None:
         if g.estado_id is not None:
-            allowed = db.query(EstadoTransicion).filter(
-                EstadoTransicion.from_estado_id == g.estado_id,
-                EstadoTransicion.to_estado_id == payload.estado_id
-            ).first()
+            allowed = (
+                db.query(EstadoTransicion)
+                .filter(EstadoTransicion.from_estado_id == g.estado_id, EstadoTransicion.to_estado_id == payload.estado_id)
+                .first()
+            )
             if allowed is None:
                 raise HTTPException(status_code=400, detail="Transición no permitida desde el estado actual")
 
-        plantilla = db.query(ComentarioPlantilla).filter(ComentarioPlantilla.estado_id == payload.estado_id).filter(
-            or_(ComentarioPlantilla.tipo_gestion == getattr(g, "tipo", None), ComentarioPlantilla.tipo_gestion == None)
-        ).order_by(ComentarioPlantilla.tipo_gestion.desc()).first()
+        plantilla = (
+            db.query(ComentarioPlantilla)
+            .filter(ComentarioPlantilla.estado_id == payload.estado_id)
+            .filter(or_(ComentarioPlantilla.tipo_gestion == getattr(g, "tipo", None), ComentarioPlantilla.tipo_gestion == None))
+            .order_by(ComentarioPlantilla.tipo_gestion.desc())
+            .first()
+        )
 
         if plantilla and plantilla.required and (not payload.comentario or payload.comentario.strip() == ""):
             raise HTTPException(status_code=400, detail="Se requiere comentario para esta transición")
+
+    # ===== FIX: asignar fecha del evento en el servidor si no viene desde el cliente =====
+    fecha_evento = getattr(payload, "fecha", None)
+    if fecha_evento is None:
+        fecha_evento = datetime.utcnow()
 
     nuevo_evento = Evento(
         gestion_id=g.id,
         usuario_id=payload.usuario_id,
         comentario=payload.comentario,
-        estado_id=payload.estado_id
+        estado_id=payload.estado_id,
+        fecha=fecha_evento,
     )
     db.add(nuevo_evento)
 
@@ -212,10 +270,11 @@ def create_evento(gestion_id: int, payload: EventoCreate, db: Session = Depends(
         "id": nuevo_evento.id,
         "gestion_id": nuevo_evento.gestion_id,
         "usuario_id": nuevo_evento.usuario_id,
-        "fecha": str(nuevo_evento.fecha) if nuevo_evento.fecha else None,
+        "fecha": _to_iso_z(nuevo_evento.fecha),
         "comentario": nuevo_evento.comentario,
-        "estado_id": nuevo_evento.estado_id
+        "estado_id": nuevo_evento.estado_id,
     }
+
 
 @app.get("/")
 def root():
