@@ -6,7 +6,7 @@ import creds from "../config/auth.json";
 
 /**
  * Login visual que compara con src/config/auth.json
- * Credenciales por defecto: admin / admin
+ * - usuarios: admin/admin (role: gestor), cliente/cliente (role: cliente)
  */
 
 export default function LoginPage() {
@@ -23,20 +23,29 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
 
-    // Comparación sencilla contra el archivo de credenciales importado
-    if (username === creds.username && password === creds.password) {
-      login(username, remember);
+    const match = Array.isArray(creds.users)
+      ? creds.users.find(u => u.username === username && u.password === password)
+      : null;
+
+    if (match) {
+      // construimos el objeto de usuario que guardamos en el provider
+      const userObj = {
+        username: match.username,
+        role: match.role || "gestor",
+        displayName: match.displayName || match.username
+      };
+      login(userObj, remember);
       navigate(from, { replace: true });
       return;
     }
 
-    setError("Usuario o contraseña inválidos.");
+    setError("Usuario o contraseña inválidos (usa admin/admin o cliente/cliente si no cambiaste el archivo).");
   }
 
   return (
     <Box display="flex" justifyContent="center" alignItems="center" sx={{ minHeight: "60vh" }}>
       <Paper sx={{ p: 4, width: 420 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>Iniciar sesión</Typography>
+        <Typography variant="h6" sx={{ mb: 2 }}>Iniciar sesión </Typography>
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         <form onSubmit={handleSubmit}>
           <TextField label="Usuario" value={username} onChange={(e) => setUsername(e.target.value)} fullWidth sx={{ mb: 2 }} />

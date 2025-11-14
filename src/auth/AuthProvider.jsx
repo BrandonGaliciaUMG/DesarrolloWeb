@@ -2,12 +2,8 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 /**
  * AuthProvider simple (visual-only).
- * Guarda el usuario en localStorage/sessionStorage sin token real.
- * Uso:
- *  - Envuelve la app con <AuthProvider>
- *  - Usa useAuth() en componentes para acceder a user, login, logout, isAuthenticated
+ * Almacena user = { username, role, displayName } en local/session storage.
  */
-
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
@@ -21,19 +17,20 @@ export function AuthProvider({ children }) {
   });
 
   useEffect(() => {
-    // placeholder: podrías sincronizar con otros mecanismos si lo necesitas
+    // Si quieres sincronizar con otros mecanismos, aquí.
   }, [user]);
 
-  const login = (username, remember = false) => {
-    const payload = { username };
+  // login recibe un objeto userObj (ej. {username, role, displayName})
+  const login = (userObj, remember = false) => {
+    if (!userObj) return;
     if (remember) {
-      localStorage.setItem("auth_user", JSON.stringify(payload));
+      localStorage.setItem("auth_user", JSON.stringify(userObj));
       sessionStorage.removeItem("auth_user");
     } else {
-      sessionStorage.setItem("auth_user", JSON.stringify(payload));
+      sessionStorage.setItem("auth_user", JSON.stringify(userObj));
       localStorage.removeItem("auth_user");
     }
-    setUser(payload);
+    setUser(userObj);
   };
 
   const logout = () => {

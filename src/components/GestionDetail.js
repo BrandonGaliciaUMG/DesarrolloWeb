@@ -15,6 +15,7 @@ import Snackbar from "@mui/material/Snackbar";
 import StatusBadge from "./StatusBadge";
 import RelativeDate from "./RelativeDate";
 import GestionStepper from "./GestionStepper";
+import { useAuth } from "../auth/AuthProvider";
 
 /**
  * GestionDetail
@@ -29,9 +30,11 @@ import GestionStepper from "./GestionStepper";
  *  - If `record` prop is provided, uses it directly and DOES NOT fetch the gestion.
  *  - Else, if `gestionId` is provided, fetches gestion and catalogos/estados.
  *  - Adds "Acciones rápidas" UI below stepper with stepwise restriction for pending states.
- *  - The bottom action buttons ("Agregar evento" / "Acción rápida") have been removed — quick actions above are the canonical way.
+ *  - Quick actions are hidden for users with role "cliente".
  */
+
 export default function GestionDetail({ gestionId, record, estadosCatalog: estadosProp, onOpenChangeModal }) {
+  const { user } = useAuth();
   const [gest, setGest] = useState(null);
   const [estados, setEstados] = useState(Array.isArray(estadosProp) ? estadosProp : []);
   const [loading, setLoading] = useState(true);
@@ -179,12 +182,21 @@ export default function GestionDetail({ gestionId, record, estadosCatalog: estad
     return possibleQuickTargetsBase;
   }, [possibleQuickTargetsBase, currentEstado]);
 
+  // Determine whether the current user can see/use quick actions
+  const canUseQuickActions = !(user && user.role === "cliente");
+
   // Submit a quick transition (inline, without opening the modal)
   async function submitQuickTransition(targetId) {
     if (!gest || !gest.id) {
       setSnack({ open: true, msg: "Gestión no disponible para actualizar", severity: "error" });
       return;
     }
+    // extra guard: don't allow client role to send transitions
+    if (!canUseQuickActions) {
+      setSnack({ open: true, msg: "No tienes permisos para realizar esta acción", severity: "warning" });
+      return;
+    }
+
     setSubmittingQuick(true);
     try {
       const body = {
@@ -292,65 +304,71 @@ export default function GestionDetail({ gestionId, record, estadosCatalog: estad
 
           <Divider />
 
-          {/* Quick actions: show next/terminal states as buttons so user can choose and comment inline */}
-          <Box>
-            <Typography variant="subtitle1" sx={{ mb: 1 }}>Acciones rápidas</Typography>
+          {/* Quick actions: hidden for 'cliente' role */}
+          {canUseQuickActions ? (
+            <Box>
+              <Typography variant="subtitle1" sx={{ mb: 1 }}>Acciones rápidas</Typography>
 
-            {possibleQuickTargets.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">No hay transiciones disponibles.</Typography>
-            ) : (
-              <Box display="flex" gap={1} flexWrap="wrap" mb={1}>
-                {possibleQuickTargets.map((t) => (
-                  <Button
-                    key={t.id}
-                    variant={Number(t.id) === Number(quickTarget) ? "contained" : "outlined"}
-                    color={t.is_terminal ? "error" : "primary"}
-                    onClick={() => {
-                      // toggle selection
-                      if (String(quickTarget) === String(t.id)) {
-                        setQuickTarget(null);
-                        setQuickComment("");
-                      } else {
-                        setQuickTarget(t.id);
-                        setQuickComment("");
-                      }
-                    }}
-                    size="small"
-                  >
-                    {t.nombre}
-                  </Button>
-                ))}
-              </Box>
-            )}
-
-            {/* Inline comment + confirm for the selected quick target */}
-            {quickTarget && (
-              <Paper variant="outlined" sx={{ p: 2, mb: 1 }}>
-                <Typography variant="body2" sx={{ mb: 1 }}>
-                  Comentario para <strong>{(stepperEstados.find(s => Number(s.id) === Number(quickTarget)) || {}).nombre}</strong>
-                </Typography>
-                <TextField
-                  value={quickComment}
-                  onChange={(e) => setQuickComment(e.target.value)}
-                  fullWidth
-                  multiline
-                  minRows={3}
-                  placeholder="Escribe un comentario (opcional)"
-                  sx={{ mb: 1 }}
-                />
-                <Box display="flex" gap={1} justifyContent="flex-end">
-                  <Button variant="text" onClick={() => { setQuickTarget(null); setQuickComment(""); }} disabled={submittingQuick}>Cancelar</Button>
-                  <Button
-                    variant="contained"
-                    onClick={() => submitQuickTransition(quickTarget)}
-                    disabled={submittingQuick}
-                  >
-                    {submittingQuick ? "Enviando..." : "Confirmar cambio"}
-                  </Button>
+              {possibleQuickTargets.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">No hay transiciones disponibles.</Typography>
+              ) : (
+                <Box display="flex" gap={1} flexWrap="wrap" mb={1}>
+                  {possibleQuickTargets.map((t) => (
+                    <Button
+                      key={t.id}
+                      variant={Number(t.id) === Number(quickTarget) ? "contained" : "outlined"}
+                      color={t.is_terminal ? "error" : "primary"}
+                      onClick={() => {
+                        // toggle selection
+                        if (String(quickTarget) === String(t.id)) {
+                          setQuickTarget(null);
+                          setQuickComment("");
+                        } else {
+                          setQuickTarget(t.id);
+                          setQuickComment("");
+                        }
+                      }}
+                      size="small"
+                    >
+                      {t.nombre}
+                    </Button>
+                  ))}
                 </Box>
-              </Paper>
-            )}
-          </Box>
+              )}
+
+              {/* Inline comment + confirm for the selected quick target */}
+              {quickTarget && (
+                <Paper variant="outlined" sx={{ p: 2, mb: 1 }}>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    Comentario para <strong>{(stepperEstados.find(s => Number(s.id) === Number(quickTarget)) || {}).nombre}</strong>
+                  </Typography>
+                  <TextField
+                    value={quickComment}
+                    onChange={(e) => setQuickComment(e.target.value)}
+                    fullWidth
+                    multiline
+                    minRows={3}
+                    placeholder="Escribe un comentario (opcional)"
+                    sx={{ mb: 1 }}
+                  />
+                  <Box display="flex" gap={1} justifyContent="flex-end">
+                    <Button variant="text" onClick={() => { setQuickTarget(null); setQuickComment(""); }} disabled={submittingQuick}>Cancelar</Button>
+                    <Button
+                      variant="contained"
+                      onClick={() => submitQuickTransition(quickTarget)}
+                      disabled={submittingQuick}
+                    >
+                      {submittingQuick ? "Enviando..." : "Confirmar cambio"}
+                    </Button>
+                  </Box>
+                </Paper>
+              )}
+            </Box>
+          ) : (
+            <Box>
+             
+            </Box>
+          )}
 
           <Divider />
 
